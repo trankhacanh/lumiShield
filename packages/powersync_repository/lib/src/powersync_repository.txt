@@ -1,0 +1,298 @@
+import 'package:env/env.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:powersync/powersync.dart';
+import 'package:shared/shared.dart' as shared;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Type alias for environment variable getter.
+typedef EnvValue = String Function(Env env);
+
+
+/// Postgres Response codes that we cannot recover from by retrying.
+final List<RegExp> fatalResponseCodes = [
+  // Class 22 — Data Exception
+  // Examples include data type mismatch.
+  RegExp(r'^22...$'),
+  // Class 23 — Integrity Constraint Violation.
+  // Examples include NOT NULL, FOREIGN KEY and UNIQUE violations.
+  RegExp(r'^23...$'),
+  // INSUFFICIENT PRIVILEGE - typically a row-level security violation
+  RegExp(r'^42501$'),
+];
+
+/// Use Supabase for authentication and data upload.
+class SupabaseConnector extends PowerSyncBackendConnector {
+  /// Creates a new [SupabaseConnector] instance.
+  SupabaseConnector(this.db, {required this.env});
+
+  /// PowerSync main database.
+  final PowerSyncDatabase db;
+
+  /// Defines whether to use Dev or Prod environment variables
+  final EnvValue env;
+
+  String get _powersyncUrl => env(Env.powersyncUrl);
+
+  Future<void>? _refreshFuture;
+
+  /// Get a Supabase token to authenticate against the PowerSync instance.
+  @override
+  Future<PowerSyncCredentials?> fetchCredentials() async {
+    // Wait for pending session refresh if any
+    await _refreshFuture;
+
+    // Use Supabase token for PowerSync
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      // Not logged in
+      shared.logD('User not logged in, returning null creds');
+      return null;
+    }
+
+    // Use the access token to authenticate against PowerSync
+    final token = session.accessToken;
+
+    // userId and expiresAt are for debugging purposes only
+    final userId = session.user.id;
+    final expiresAt = session.expiresAt == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(session.expiresAt! * 1000);
+
+    shared.logD('Fetched credentials successfully for user: $userId');
+
+    return PowerSyncCredentials(
+      endpoint: _powersyncUrl,
+      token: token,
+      userId: userId,
+      expiresAt: expiresAt,
+    );
+  }
+
+  @override
+  void invalidateCredentials() {
+    // Trigger a session refresh if auth fails on PowerSync.
+    _refreshFuture = Supabase.instance.client.auth
+        .refreshSession()
+        .timeout(const Duration(seconds: 5))
+        .then((response) => null, onError: (error) => null);
+  }
+
+  // Upload pending changes to Supabase.
+  @override
+  Future<void> uploadData(PowerSyncDatabase database) async {
+    final transaction = await database.getNextCrudTransaction();
+    if (transaction == null) {
+      return;
+    }
+
+    final rest = Supabase.instance.client.rest;
+    CrudEntry? lastOp;
+    try {
+      for (final op in transaction.crud) {
+        lastOp = op;
+        final table = rest.from(op.table);
+
+        switch (op.op) {
+          case UpdateType.put:
+            final data = Map<String, dynamic>.of(op.opData!);
+            data['id'] = op.id;
+            await table.upsert(data);
+          case UpdateType.patch:
+            await table.update(op.opData!).eq('id', op.id);
+          case UpdateType.delete:
+            await table.delete().eq('id', op.id);
+        }
+      }
+
+      // All operations successful.
+      await transaction.complete();
+      shared.logD(
+        'Uploaded ${transaction.crud.length} operations',
+      );
+    } on PostgrestException catch (e) {
+      if (e.code != null &&
+          fatalResponseCodes.any((re) => re.hasMatch(e.code!))) {
+        shared.logE('Data upload error - discarding $lastOp', error: e);
+        await transaction.complete();
+      } else {
+        rethrow;
+      }
+    } catch (e) {
+      shared.logE('Unexpected upload error', error: e);
+      rethrow;
+    }
+  }
+}
+
+/// {@template power_sync_repository}
+/// A package that manages connection to the PowerSync cloud service and
+/// database.
+///
+/// The [PowerSyncRepository] class is responsible for managing the local
+/// database and interacting with the Supabase client.
+/// {@endtemplate}
+class PowerSyncRepository {
+  /// Initializes a new instance of the [PowerSyncRepository] class.
+  PowerSyncRepository({
+    required this.env,
+    this.dbName = 'flutter-instagram-offline-first.db',
+  });
+
+  /// Defines whether to use Dev or Prod environment variables
+  final EnvValue env;
+
+  /// The local database file name
+  final String dbName;
+
+  bool _isInitialized = false;
+
+  late final PowerSyncDatabase _db;
+
+  String get _supabaseUrl => env(Env.supabaseUrl);
+  String get _supabaseAnonKey => env(Env.supabaseAnonKey);
+
+  /// Initializes the local database and opens a new instance of the database.
+  Future<void> initialize({bool offlineMode = false}) async {
+    if (!_isInitialized) {
+      shared.logD('PowerSyncRepository: Starting initialization...');
+      await _openDatabase();
+      _isInitialized = true;
+      shared.logD('PowerSyncRepository: Initialization complete.');
+    }
+  }
+
+  /// Returns the PowerSync database instance.
+  PowerSyncDatabase db() {
+    if (!_isInitialized) {
+      throw Exception(
+        'PowerSyncDatabase not initialized. Call initialize() first.',
+      );
+    }
+    return _db;
+  }
+
+  /// The Supabase client.
+  /// Note: Throws an assertion if accessed before Supabase is initialized.
+  late final SupabaseClient supabase = Supabase.instance.client;
+
+  /// Checks if a user is logged in.
+  bool isLoggedIn() {
+    try {
+      return supabase.auth.currentSession?.accessToken != null;
+    } on Object catch (_) {
+      // Supabase might not be initialized yet
+      return false;
+    }
+  }
+
+  /// Returns the relative directory of the local database.
+  Future<String> getDatabasePath() async {
+    final dir = await getApplicationSupportDirectory();
+    return join(dir.path, dbName);
+  }
+
+  /// Loads the Supabase client with the provided environment values.
+  Future<void> _loadSupabase() async {
+    try {
+      await Supabase.initialize(
+        url: _supabaseUrl,
+        anonKey: _supabaseAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.implicit,
+        ),
+      );
+      shared.logD('Supabase initialized successfully');
+    } on Object catch (e) {
+      // Ignore if already initialized
+      shared.logD('Supabase already initialized or failed: $e');
+    }
+  }
+
+  /// Opens the local database, initializes the Supabase client, and connects
+  /// to the database if the user is logged in.
+  Future<void> _openDatabase() async {
+    _db = PowerSyncDatabase(
+      schema: shared.schema,
+      path: await getDatabasePath(),
+    );
+    await _db.initialize();
+    shared.logD(
+      'PowerSync local DB initialized at: ${await getDatabasePath()}',
+    );
+
+    await _loadSupabase();
+
+    SupabaseConnector? currentConnector;
+
+    if (isLoggedIn()) {
+      shared.logD('User is logged in. Connecting to PowerSync cloud...');
+      currentConnector = SupabaseConnector(_db, env: env);
+      await _db.connect(connector: currentConnector);
+      shared.logD('PowerSync cloud connection established successfully!');
+    } else {
+      shared.logD('User is NOT logged in. Skipping PowerSync connection.');
+    }
+
+    supabase.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
+      shared.logD('Supabase Auth Event: $event');
+
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.passwordRecovery) {
+        shared.logD('Connecting to PowerSync due to Auth Change...');
+        currentConnector = SupabaseConnector(_db, env: env);
+        await _db.connect(connector: currentConnector!);
+        shared.logD('PowerSync cloud connection established successfully!');
+      } else if (event == AuthChangeEvent.signedOut) {
+        shared.logD('User signed out. Disconnecting from PowerSync...');
+        currentConnector = null;
+        await _db.disconnect();
+        shared.logD('Disconnected from PowerSync.');
+      } else if (event == AuthChangeEvent.tokenRefreshed) {
+        shared.logD('Token refreshed. Prefetching credentials...');
+        await currentConnector?.prefetchCredentials();
+      }
+    });
+  }
+
+  /// Returns a stream of authentication state changes from the Supabase client.
+  Stream<AuthState> authStateChanges() =>
+      supabase.auth.onAuthStateChange.asBroadcastStream();
+
+  /// Updates the user app metadata.
+  Future<void> updateUser({
+    String? email,
+    String? phone,
+    String? password,
+    String? nonce,
+    Object? data,
+  }) =>
+      supabase.auth.updateUser(
+        UserAttributes(
+          email: email,
+          phone: phone,
+          password: password,
+          nonce: nonce,
+          data: data,
+        ),
+      );
+
+  /// Sends a password reset email to the specified email address.
+  Future<void> resetPassword({
+    required String email,
+    String? redirectTo,
+  }) =>
+      supabase.auth.resetPasswordForEmail(email, redirectTo: redirectTo);
+
+  /// Verifies the OTP token for password recovery.
+  Future<void> verifyOTP({
+    required String token,
+    required String email,
+  }) =>
+      supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      );
+}

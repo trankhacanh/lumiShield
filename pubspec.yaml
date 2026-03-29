@@ -1,0 +1,56 @@
+name: flutter_luminous_clone
+description: A Very Good Project created by Very Good CLI.
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+  flutter: ^3.41.0
+
+dependencies:
+  animations: ^2.1.2
+  app_ui:
+    path: packages/app_ui
+  bloc: ^9.2.0
+  env:
+    path: packages/env
+  equatable: ^2.0.8
+  firebase_auth: ^6.3.0
+  firebase_core: ^4.6.0
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_localizations:
+    sdk: flutter
+  flutter_native_splash: ^2.4.1
+  form_fields:
+    path: packages/form_fields
+  get_it: ^9.2.1
+  google_sign_in: ^6.3.0
+  intl: ^0.20.2
+  powersync_repository:
+    path: packages/powersync_repository
+  shared:
+    path: packages/shared
+  supabase_authentication_client:
+    path: packages/authentication_client/supabase_authentication_client
+  token_storage:
+    path: packages/authentication_client/token_storage
+  user_repository:
+    path: packages/user_repository
+
+dev_dependencies:
+  bloc_lint: ^0.4.0
+  bloc_test: ^10.0.0
+  bloc_tools: ^0.1.0-dev.23
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.4
+  very_good_analysis: ^10.2.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+flutter_native_splash:
+  color: "#ffffff"
