@@ -673,6 +673,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.4.0"
+  luminous_blocks_ui:
+    dependency: "direct main"
+    description:
+      path: "packages/luminous_blocks_ui"
+      relative: true
+    source: path
+    version: "0.1.0+1"
   mason:
     dependency: transitive
     description:

@@ -5,7 +5,6 @@ import 'package:flutter_luminous_clone/auth/login/login.dart';
 import 'package:flutter_luminous_clone/auth/login/widgets/widgets.dart';
 import 'package:user_repository/user_repository.dart';
 
-
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -35,57 +34,60 @@ class LoginView extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: AppSpacing.xxxlg * 2),
-          const AppLogo(
-            height: AppSpacing.xxxlg,
-            fit: BoxFit.fitHeight,
-            width: double.infinity,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                //login form
-                const LoginForm(),
-        
-                const Padding(
-                  padding: EdgeInsets.only(
-                    bottom: AppSpacing.md,
-                    top: AppSpacing.xs,
-                  ),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: ForgotPasswordButton(),
-                  ),
-                ),
-                //sign in button
-                const Align(
-                  child: SignInButton(),
-                ),
-                //divider
-                const Padding(padding: EdgeInsets.symmetric(
-                  vertical: AppSpacing.md,
-                ),
-                child: AppDivider(withText: true,),
-                ),
-                Align(
-                      child: AuthProviderSignInButton(
-                        provider: AuthProvider.google,
-                        onPressed: () =>
-                            context.read<LoginCubit>().loginWithGoogle(),
-                      ),
-                    ),
-                    Align(
-                      child: AuthProviderSignInButton(
-                        provider: AuthProvider.github,
-                        onPressed: () =>
-                            context.read<LoginCubit>().loginWithGithub(),
-                      ),
-                    ),
-              ],
+            const AppLogo(
+              height: AppSpacing.xxxlg,
+              fit: BoxFit.fitHeight,
+              width: double.infinity,
             ),
-          ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  //login form
+                  const LoginForm(),
+
+                  const Padding(
+                    padding: EdgeInsets.only(
+                      bottom: AppSpacing.md,
+                      top: AppSpacing.xs,
+                    ),
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: ForgotPasswordButton(),
+                    ),
+                  ),
+                  //sign in button
+                  const Align(
+                    child: SignInButton(),
+                  ),
+                  //divider
+                  const Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    child: AppDivider(
+                      withText: true,
+                    ),
+                  ),
+                  Align(
+                    child: AuthProviderSignInButton(
+                      provider: AuthProvider.google,
+                      onPressed: () =>
+                          context.read<LoginCubit>().loginWithGoogle(),
+                    ),
+                  ),
+                  Align(
+                    child: AuthProviderSignInButton(
+                      provider: AuthProvider.github,
+                      onPressed: () =>
+                          context.read<LoginCubit>().loginWithGithub(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SignUpNewAccountButton(),
-        ],
+          ],
         ),
       ),
     );
