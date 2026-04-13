@@ -15,7 +15,7 @@ dependencies:
   env:
     path: packages/env
   equatable: ^2.0.8
-  firebase_auth: ^6.3.0
+  firebase_auth: ^6.4.0
   firebase_core: ^4.6.0
   flutter:
     sdk: flutter
