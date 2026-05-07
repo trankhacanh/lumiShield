@@ -142,14 +142,20 @@ class LoginCubit extends Cubit<LoginState> {
   }
 
   Future<void> onSubmit() async {
-    final email = Email.dirty(state.email.value);
-    final password = Password.dirty(state.password.value);
+    final rawEmail = state.email.value.trim();
+    final rawPassword = state.password.value;
+    final normalizedEmail = rawEmail.toLowerCase();
+
+    final email = Email.dirty(normalizedEmail);
+    final password = Password.dirty(rawPassword);
     final isFormValid = FormzValid([email, password]).isFormValid;
 
     final newState = state.copyWith(
       email: email,
       password: password,
-      status: isFormValid ? LogInSubmissionStatus.loading : LogInSubmissionStatus.idle,
+      status: isFormValid
+          ? LogInSubmissionStatus.loading
+          : LogInSubmissionStatus.idle,
     );
 
     emit(newState);
@@ -158,8 +164,8 @@ class LoginCubit extends Cubit<LoginState> {
 
     try {
       await _userRepository.logInWithPassword(
-        email: email.value,
-        password: password.value,
+        email: normalizedEmail,
+        password: rawPassword,
       );
       final newState = state.copyWith(status: LogInSubmissionStatus.success);
       emit(newState);
@@ -174,10 +180,14 @@ class LoginCubit extends Cubit<LoginState> {
     addError(e, stackTrace);
     final status = switch (e) {
       LogInWithPasswordFailure(:final AuthException error) =>
-        switch (error.statusCode?.parse) {
-          HttpStatus.badRequest => LogInSubmissionStatus.invalidCredentials,
-          _ => LogInSubmissionStatus.error,
-        },
+        error.toString().toLowerCase().contains('email_not_confirmed') ||
+                error.toString().toLowerCase().contains('email not confirmed')
+            ? LogInSubmissionStatus.emailNotConfirmed
+            : switch (error.statusCode?.parse) {
+                HttpStatus.badRequest =>
+                  LogInSubmissionStatus.invalidCredentials,
+                _ => LogInSubmissionStatus.error,
+              },
       LogInWithPasswordFailure _ => LogInSubmissionStatus.error,
       LogInWithGoogleFailure _ => LogInSubmissionStatus.googleLogInFailure,
       LogInWithGithubFailure _ => LogInSubmissionStatus.error,

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:app_ui/app_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,37 +21,47 @@ class SignUpPage extends StatelessWidget {
   }
 }
 
-class SignUpView extends StatelessWidget {
+class SignUpView extends StatefulWidget {
   const SignUpView({super.key});
 
   @override
+  State<SignUpView> createState() => _SignUpViewState();
+}
+
+class _SignUpViewState extends State<SignUpView> {
+  File? _avatarFile;
+  @override
   Widget build(BuildContext context) {
-    return const AppScaffold(
+    return AppScaffold(
       releaseFocus: true,
       resizeToAvoidBottomInset: true,
       body: AppConstrainedScrollView(
-        padding: EdgeInsets.symmetric(horizontal: AppSpacing.xlg),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xlg),
         child: Column(
           children: [
-            SizedBox(height: AppSpacing.xxxlg + AppSpacing.xlg),
-            AppLogo(
+            const SizedBox(height: AppSpacing.xxxlg + AppSpacing.xlg),
+            const AppLogo(
               fit: BoxFit.fitHeight,
             ),
             Expanded(
               child: Column(
                 children: [
                   Align(
-                    child: AvatarImagePicker(),
+                    child: AvatarImagePicker(
+                      onUpload: (_, avatarFile) {
+                        setState(() => _avatarFile = avatarFile);
+                      },
+                    ),
                   ),
-                  SizedBox(height: AppSpacing.md),
-                  SignUpForm(),
-                  SizedBox(height: AppSpacing.xlg),
-                  SignUpButton(),
+                  const SizedBox(height: AppSpacing.md),
+                  const SignUpForm(),
+                  const SizedBox(height: AppSpacing.xlg),
+                  SignUpButton(avatarFile: _avatarFile),
                 ],
               ),
             ),
             //login in account button
-            SignInIntoAccountButton(),
+            const SignInIntoAccountButton(),
           ],
         ),
       ),

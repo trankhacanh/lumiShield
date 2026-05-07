@@ -1,18 +1,22 @@
 // ignore_for_file: document_ignores, avoid_catches_without_on_clauses
 
 import 'package:authentication_client/authentication_client.dart';
+import 'package:database_client/database_client.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:user_repository/src/models/models.dart';
 
 /// {@template user_repository}
 /// A Very Good Project created by Very Good CLI.
 /// {@endtemplate}
-class UserRepository {
+class UserRepository extends UserBaseRepository {
   /// {@macro user_repository}
   const UserRepository({
+    required DatabaseClient databaseClient,
     required AuthenticationClient authenticationClient,
-  }) : _authenticationClient = authenticationClient;
+  }) : _databaseClient = databaseClient,
+       _authenticationClient = authenticationClient;
 
+  final DatabaseClient _databaseClient;
   final AuthenticationClient _authenticationClient;
 
   /// Stream of [User] which will emit the current user when
@@ -161,12 +165,12 @@ class UserRepository {
     }
   }
 
-  /* 
   @override
   String? get currentUserId => _databaseClient.currentUserId;
 
   @override
-  Stream<User> profile({required String id}) => _databaseClient.profile(id: id);
+  Stream<User> profile({required String userId}) =>
+      _databaseClient.profile(userId: userId);
 
   @override
   Stream<int> followersCountOf({required String userId}) =>
@@ -177,26 +181,19 @@ class UserRepository {
       _databaseClient.followingsCountOf(userId: userId);
 
   @override
-  Future<List<User>> getFollowers({String? userId}) =>
-      _databaseClient.getFollowers(userId: userId);
-
-  @override
-  Future<List<User>> getFollowings({String? userId}) =>
-      _databaseClient.getFollowings(userId: userId);
+  Stream<bool> followingStatus({
+    required String userId,
+    String? followerId,
+  }) => _databaseClient.followingStatus(followerId: followerId, userId: userId);
 
   @override
   Future<void> follow({
     required String followToId,
     String? followerId,
-  }) =>
-      _databaseClient.follow(
-        followToId: followToId,
-        followerId: followerId,
-      );
-
-  @override
-  Future<void> removeFollower({required String id}) =>
-      _databaseClient.removeFollower(id: id);
+  }) => _databaseClient.follow(
+    followToId: followToId,
+    followerId: followerId,
+  );
 
   @override
   Future<void> unfollow({required String unfollowId, String? unfollowerId}) =>
@@ -209,16 +206,18 @@ class UserRepository {
   Future<bool> isFollowed({
     required String userId,
     String? followerId,
-  }) =>
-      _databaseClient.isFollowed(followerId: followerId, userId: userId);
+  }) => _databaseClient.isFollowed(followerId: followerId, userId: userId);
+  @override
+  Future<List<User>> getFollowings({String? userId}) =>
+      _databaseClient.getFollowings(userId: userId);
 
   @override
-  Stream<bool> followingStatus({
-    required String userId,
-    String? followerId,
-  }) =>
-      _databaseClient.followingStatus(followerId: followerId, userId: userId);
+  Stream<List<User>> followers({required String userId}) =>
+      _databaseClient.followers(userId: userId);
 
+  @override
+  Future<void> removeFollower({required String id}) =>
+      _databaseClient.removeFollower(id: id);
   @override
   Future<void> updateUser({
     String? fullName,
@@ -226,14 +225,25 @@ class UserRepository {
     String? username,
     String? avatarUrl,
     String? pushToken,
-  }) =>
-      _databaseClient.updateUser(
-        fullName: fullName,
-        email: email,
-        username: username,
-        avatarUrl: avatarUrl,
-        pushToken: pushToken,
-      );
+  }) => _databaseClient.updateUser(
+    fullName: fullName,
+    email: email,
+    username: username,
+    avatarUrl: avatarUrl,
+    pushToken: pushToken,
+  );
+  /* 
+
+x
+  @override
+  Future<List<User>> getFollowers({String? userId}) =>
+      _databaseClient.getFollowers(userId: userId);
+
+ 
+ 
+
+
+ 
 
   @override
   Future<List<User>> searchUsers({
@@ -250,8 +260,5 @@ class UserRepository {
         query: query,
         excludeUserIds: excludeUserIds,
       );
-
-  @override
-  Stream<List<User>> followers({required String userId}) =>
-      _databaseClient.followers(userId: userId); */
+  */
 }

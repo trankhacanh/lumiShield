@@ -37,6 +37,10 @@ enum LogInSubmissionStatus {
   /// credentials was not found in database.
   userNotFound,
 
+  /// [LogInSubmissionStatus.emailNotConfirmed] indicates that user hasn't
+  /// confirmed the signup email yet.
+  emailNotConfirmed,
+
   /// [LogInSubmissionStatus.loading] indicates that user has no internet
   /// connection,during network request.
   networkError,
@@ -59,11 +63,14 @@ enum LogInSubmissionStatus {
       this == LogInSubmissionStatus.invalidCredentials;
   bool get isNetworkError => this == LogInSubmissionStatus.networkError;
   bool get isUserNotFound => this == LogInSubmissionStatus.userNotFound;
+  bool get isEmailNotConfirmed =>
+      this == LogInSubmissionStatus.emailNotConfirmed;
   bool get isError =>
       this == LogInSubmissionStatus.error ||
       isUserNotFound ||
       isNetworkError ||
-      isInvalidCredentials;
+      isInvalidCredentials ||
+      isEmailNotConfirmed;
 }
 
 /// {@template login_state}
@@ -124,6 +131,11 @@ final loginSubmissionStatusMessage =
       LogInSubmissionStatus.userNotFound: const SubmissionStatusMessage(
         title: 'User with this email not found!',
         description: 'Try to sign up.',
+      ),
+      LogInSubmissionStatus.emailNotConfirmed: const SubmissionStatusMessage(
+        title: 'Email chưa xác thực',
+        description:
+            'Kiểm tra hộp thư và mở link xác nhận để tiếp tục đăng nhập.',
       ),
       LogInSubmissionStatus.googleLogInFailure: const SubmissionStatusMessage(
         title: 'Google login failed!',

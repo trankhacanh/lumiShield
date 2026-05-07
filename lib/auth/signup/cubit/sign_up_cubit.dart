@@ -5,7 +5,9 @@ import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:form_fields/form_fields.dart';
+import 'package:powersync_repository/powersync_repository.dart';
 import 'package:shared/shared.dart';
+import 'package:supabase_authentication_client/supabase_authentication_client.dart';
 import 'package:user_repository/user_repository.dart';
 
 part 'sign_up_state.dart';
@@ -199,11 +201,35 @@ class SignUpCubit extends Cubit<SignUpState> {
     if (!isFormValid) return;
 
     try {
+      String? imageUrlResponse;
+      if (avatarFile != null) {
+        final imageBytes = await PickImage().imageBytes(
+          file: File(avatarFile.path),
+        );
+        final avatarsStorage = Supabase.instance.client.storage.from('avatars');
+
+        final fileExt = avatarFile.path.split('.').last.toLowerCase();
+        final fileName = '${DateTime.now().toIso8601String()}.$fileExt';
+        final filePath = fileName;
+        await avatarsStorage.uploadBinary(
+          filePath,
+          imageBytes,
+          fileOptions: FileOptions(
+            contentType: 'image/$fileExt',
+            cacheControl: '360000',
+          ),
+        );
+        imageUrlResponse = await avatarsStorage.createSignedUrl(
+          filePath,
+          60 * 60 * 24 * 365 * 10,
+        );
+      }
       await _userRepository.signUpWithPassword(
         password: state.password.value,
         email: state.email.value,
         fullName: state.fullName.value,
         username: state.username.value,
+        avatarUrl: imageUrlResponse,
       );
       if (isClosed) return;
       emit(state.copyWith(submissionStatus: SignUpSubmissionStatus.success));
@@ -211,19 +237,34 @@ class SignUpCubit extends Cubit<SignUpState> {
       _errorFormatter(error, stackTrace);
     }
   }
+
   /// Defines method to format error. It is used to format error in order to
   /// show it to user.
   void _errorFormatter(Object e, StackTrace stackTrace) {
     addError(e, stackTrace);
 
-    SignUpSubmissionStatus submissionStatus() {
-      return SignUpSubmissionStatus.error;
+    var errorMessage = '';
+    var submissionStatus = SignUpSubmissionStatus.error;
+
+    if (e is SignUpWithPasswordFailure) {
+      final error = e.error;
+      if (error is AuthException) {
+        final statusCode = error.statusCode?.parse;
+        switch (statusCode) {
+          case HttpStatus.badRequest:
+            submissionStatus = SignUpSubmissionStatus.emailAlreadyRegistered;
+            errorMessage = 'User with this email already exists.';
+          default:
+            submissionStatus = SignUpSubmissionStatus.error;
+            errorMessage = error.message;
+        }
+      }
     }
 
     final newState = state.copyWith(
-      submissionStatus: submissionStatus(),
+      submissionStatus: submissionStatus,
+      errorMessage: errorMessage,
     );
     emit(newState);
   }
-  
 }

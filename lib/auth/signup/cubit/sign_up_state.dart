@@ -1,4 +1,3 @@
-
 part of 'sign_up_cubit.dart';
 
 /// Message that will be shown to user, when he will try to submit signup form,
@@ -60,6 +59,7 @@ class SignUpState extends Equatable {
     //required this.userProfileAvatarUrl,
     required this.submissionStatus,
     required this.showPassword,
+    this.errorMessage = '',
   });
 
   /// Creates initial signup state. It is used to define initial state in
@@ -73,6 +73,7 @@ class SignUpState extends Equatable {
         //userProfileAvatarUrl: '',
         submissionStatus: SignUpSubmissionStatus.idle,
         showPassword: false,
+        errorMessage: '',
       );
 
   /// Email value state.
@@ -96,6 +97,9 @@ class SignUpState extends Equatable {
   /// Defines if password is visible or not.
   final bool showPassword;
 
+  /// Custom error message from server/exception.
+  final String errorMessage;
+
   /// Creates copy of current state with some fields updated.
   SignUpState copyWith({
     Email? email,
@@ -105,6 +109,7 @@ class SignUpState extends Equatable {
     //String? userProfileAvatarUrl,
     SignUpSubmissionStatus? submissionStatus,
     bool? showPassword,
+    String? errorMessage,
   }) => SignUpState._(
     email: email ?? this.email,
     password: password ?? this.password,
@@ -113,6 +118,7 @@ class SignUpState extends Equatable {
     //userProfileAvatarUrl: userProfileAvatarUrl ?? this.userProfileAvatarUrl,
     submissionStatus: submissionStatus ?? this.submissionStatus,
     showPassword: showPassword ?? this.showPassword,
+    errorMessage: errorMessage ?? this.errorMessage,
   );
 
   @override
@@ -124,11 +130,16 @@ class SignUpState extends Equatable {
     //userProfileAvatarUrl,
     submissionStatus,
     showPassword,
+    errorMessage,
   ];
 }
 
 final signupSubmissionStatusMessage =
     <SignUpSubmissionStatus, SubmissionStatusMessage>{
+      SignUpSubmissionStatus.success: const SubmissionStatusMessage(
+        title: 'Account created successfully!',
+        description: 'Welcome! Please log in with your credentials.',
+      ),
       SignUpSubmissionStatus.emailAlreadyRegistered:
           const SubmissionStatusMessage(
             title: 'User with this email already exists.',

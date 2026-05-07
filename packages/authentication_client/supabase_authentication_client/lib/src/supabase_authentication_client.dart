@@ -8,7 +8,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:powersync_repository/powersync_repository.dart';
 import 'package:shared/shared.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:token_storage/token_storage.dart';
 
 /// {@template supabase_authentication_client}

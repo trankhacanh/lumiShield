@@ -1,1 +1,4 @@
+analyzer:
+  errors:
+    document_ignores: ignore
 include: package:very_good_analysis/analysis_options.yaml

@@ -1,7 +1,11 @@
+// ignore_for_file: document_ignores, discarded_futures
+
 import 'package:app_ui/app_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_luminous_clone/auth/auth.dart';
 import 'package:flutter_luminous_clone/l10n/l10n.dart';
 import 'package:shared/shared.dart';
+
 
 class ForgotPasswordButton extends StatelessWidget {
   const ForgotPasswordButton({super.key});
@@ -12,11 +16,11 @@ class ForgotPasswordButton extends StatelessWidget {
       throttle: true,
       throttleDuration: 650.ms,
       onTap: () {
-       /*  Navigator.pushAndRemoveUntil(
+         Navigator.pushAndRemoveUntil(
           context,
           ManageForgotPasswordPage.route(),
           (_) => true,
-        ); */
+        ); 
       },
       child: Text(
         context.l10n.forgotPasswordText,
